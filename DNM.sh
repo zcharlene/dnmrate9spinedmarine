@@ -1,17 +1,3 @@
-
-## FNR
-touch FNR.txt
-
-for i in {1..10}
-do
-zcat $(sed -n ${i}p F2_Triovcf_ats.list) | bcftools query -l
-paste <(echo F2_0${i}) \
-<(zcat $(sed -n ${i}p F2_Triovcf_ats.list) | bcftools query -f '%CHROM %POS[ %GT]\n' | awk '(($3 == "0/0"||$3 == "0|0")&& ($4 == "1/1"||$4 == "1|1")&& ($5 == "0/1"||$5 == "0|1"))||(($4 == "0/0"||$4 == "0|0")&&($3 == "1/1"||$3 == "1|1")&& ($5 == "0/1"||$5 == "0|1"))' | wc -l) \
-<(zcat $(sed -n ${i}p F2_Triovcf_ats.list) | bcftools query -f '%CHROM %POS[ %GT][ %AD{0} %AD{1}]\n' | awk '(($3 == "0/0"||$3 == "0|0")&& ($4 == "1/1"||$4 == "1|1")&& ($5 == "0/1"||$5 == "0|1"))||(($4 == "0/0"||$4 == "0|0")&&($3 == "1/1"||$3 == "1|1")&& ($5 == "0/1"||$5 == "0|1"))' | awk '{ADsum = $10 + $11;
-    if($11 >= 0.3*ADsum && $11 <= 0.7*ADsum){print $0}}' | wc -l) >> FNR.txt
-done
-
-
 ##### annotation
 
 ### align V7 mutations to V6 by a liftover file
