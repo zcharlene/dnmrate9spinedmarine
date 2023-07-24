@@ -127,8 +127,8 @@ paste <(echo ${PEDIGREE}_F2_0${i}) \
 <(cat ${DNMLIST}${PEDIGREE}_F2_0${i}_snp1.txt | wc -l) >> ${DNMLIST}${PEDIGREE}_Count_ats.txt
 done
 
-cat */*_snp0.txt | sed  's/_snp0.txt//g' | sed 's#/# #g' >  ${DNMLIST}${PEDIGREE}_DNMbase.txt
-cat */*_snp1.txt | sed  's/_snp0.txt//g' | sed 's#/# #g' >>  ${DNMLIST}${PEDIGREE}_DNMbase.txt
+awk '{print FILENAME,$1,$2,$1"_"$2,$4,$5}' */*_snp0.txt | sed  's/_snp0.txt//g' | sed 's#/# #g'  >  ${DNMLIST}${PEDIGREE}_DNMbase.txt
+awk '{print FILENAME,$1,$2,$1"_"$2,$4,$5}' */*_snp1.txt | sed  's/_snp0.txt//g' | sed 's#/# #g'  >>  ${DNMLIST}${PEDIGREE}_DNMbase.txt
 
 sed 's/LG//g' ${DNMLIST}${PEDIGREE}_DNMbase.txt  | awk '
 {       if($3 != l1 || $4 - l2 > 100) {
