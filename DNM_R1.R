@@ -9,7 +9,7 @@ library(wesanderson)
 library(ggchicklet)
 library(ggmap)
 
-setwd("~/Desktop/C/PhD/Project/MutationRate/Publication/MS_R1")
+
 
 mutations<- read.csv("mutation_TVA_POR.csv", header = T)
 DNMposition <- read.csv("mutation_position_TVA_POR.csv", na.strings=c("", "NA"),header = T)
@@ -261,35 +261,97 @@ chisq.test(Tsvcount,p=c(1/3,2/3))
 
 ### CGI
 
-t.test(CGIcount$DNMrate~CGIcount$CGI,alternative="two.sided")
+# check distribution
+plotn<-ggplot(data = CGIcount,aes(x=n,fill=CGI)) +
+  geom_histogram(alpha=0.5,bins=10) +
+  scale_x_continuous(breaks = seq(0, 10, by = 2))+
+  theme_classic(base_size = 10) 
+plotDNMrate<-ggplot(data = CGIcount,aes(x=DNMrate*1e08,fill=CGI)) +
+  geom_histogram(alpha=0.5,bins=20) +
+  theme_classic(base_size = 10)
+plotDNMrate_CpG <- ggplot(data = CGIcount,aes(x=DNMrate_CpG*1e08,fill=CGI)) +
+  geom_histogram(alpha=0.5,bins=20) +
+  theme_classic(base_size = 10) 
+plotDNMrate_CG_NonCpG <- ggplot(data = CGIcount,aes(x=DNMrate_CG_NonCpG*1e08,fill=CGI)) +
+  geom_histogram(alpha=0.5,bins=20) +
+  theme_classic(base_size = 10) 
+ggarrange(plotn, plotDNMrate, plotDNMrate_CpG, plotDNMrate_CG_NonCpG, 
+          labels = c("A", "B", "C","D"),
+          font.label = list(size = 12),
+          ncol = 2, nrow = 2,
+          common.legend = TRUE, legend="bottom")
 
-ggplot(data = CGIcount,aes(x=CGI,y=DNMrate,fill=CGI,color=CGI)) +
-  geom_boxplot(outlier.shape = NA,color="#403d77")+
+CGIcount  %>% group_by(CGI) %>% 
+  summarise_at(vars(CalGenSize, CalGenSize_CpG, CalGenSize_NonCpG), list(sum=sum))
+##    CGI    CalGenSize_sum CalGenSize_CpG_sum CalGenSize_NonCpG_sum
+##   CGI        4395421989    1260390091      3135031898
+##   Non-CGI    34516242009   1353217928      33163024081
+
+DNMposition %>% group_by(CGI) %>% count(CpG)
+##   CGI     CpG         n
+##   <chr>   <chr>   <int>
+##   1 CGI     CpG        16
+##   2 CGI     Non-CpG    15
+##   3 Non-CGI CpG        50
+##   4 Non-CGI Non-CpG   254
+
+
+Type <- c("CGI_all","CGI_CpG","CGI_NonCpG","Non-CGI_all","Non-CGI_CpG","Non-CGI_NonCpG")
+CS <- c(4395421989,1260390091,3135031898,34516242009,1353217928,33163024081)
+DNMnumber <- c(31,16,15,304,50,254)
+CGIrate <- data.frame(Type,CS, DNMnumber)
+CGIrate$DNMrate <- CGIrate$DNMnumber/(2*CGIrate$CS)
+
+chisq.test(c(16,15),p=c(0.2867507,0.7132493)) ### CGI CpG vs non-CpG
+## X-squared = 7.9748, df = 1, p-value = 0.004743
+
+for(i in 1:3) {
+print(chisq.test(c(CGIrate$DNMnumber[i],CGIrate$DNMnumber[i+3]),p=c(CGIrate$CS[i],CGIrate$CS[i+3])/(sum(c(CGIrate$CS[i],CGIrate$CS[i+3])))))
+}
+### CpG CGI vs Non-CGI: X-squared = 11.819, df = 1, p-value = 9.658e-05
+### non-CpG CGI vs Non-CGI: X-squared = 2.0579, df = 1, p-value = 0.07393
+### CGI vs Non-CGI: X-squared = 0.46578, df = 1, p-value = 0.2377
+
+
+ggplot(data = CGIcount,aes(x=CGI,y=DNMrate,fill=CGI)) +
+  geom_violin(color="#403d77")+
+  geom_point(size=0.5)+
   theme_classic(base_size = 10) +
   theme(axis.title.x = element_blank()) +
-  ylim(0, 2.1e-08)+
   ylab("DNM rates") +
   scale_fill_manual(values=c("#81b1d3","#ffffff"),name=NULL) +
-  stat_compare_means(method = "t.test", label.y = 2e-08,size=3) +
-  stat_compare_means(label = "p.signif", method = "t.test",ref.group = ".all.", size = 3,label.y = 1.8e-08,hide.ns = T,show.legend = F) + 
+  stat_compare_means(method = "kruskal.test", label.y = 3.2e-08,size=3) +
   theme(legend.position="bottom")
 
-DNMrate <- c(subset(CGIcount,CGI=="CGI")$DNMrate_CpG,subset(CGIcount,CGI=="CGI")$DNMrate_NonCpG,subset(CGIcount,CGI=="CGI")$DNMrate_CG_NonCpG)
-DNM <- c(subset(CGIcount,CGI=="CGI")$nDNM_CpG,subset(CGIcount,CGI=="CGI")$nDNM_nonCpG,subset(CGIcount,CGI=="CGI")$nDNM_CG_nonCpG)
-CGICpG <- data_frame(DNMrate,DNM)
-CGICpG$ID <- rep(subset(CGIcount,CGI=="CGI")$ID,3)
-CGICpG$Type <- c(rep("CpG",25),rep("Non-CpG",25),rep("Free CG",25))
+kruskal.test(DNMrate ~ CGI, data = CGIcount) ## Kruskal-Wallis chi-squared = 35.701, df = 1, p-value = 2.3e-09
+wilcox.test(DNMrate ~ CGI,  data = CGIcount, mu = 0, alternative = "two.sided")
 
-ggplot(data = subset(CGICpG,Type!="Non-CpG"),aes(x=Type,y=DNMrate)) +
-  geom_boxplot(outlier.shape = NA,color="#403d77")+
+# CGI, CpG and mutation type
+
+CpGCGI <- DNMposition %>% group_by(CGI,CpG) %>% count(Position)
+ggplot(data = CpGCGI,aes(x=Position,y=n,fill=CpG)) +
+  geom_bar(position = position_dodge(preserve = "single"),stat = "identity",width = 0.8,color="#403d77") +
   theme_classic(base_size = 10) +
+  facet_grid(. ~ CGI, space = 'free_x', scales = 'free_x')+
+  ylab("Number of DNMs observed")+
   theme(axis.title.x = element_blank()) +
-  ylab("DNM rates") +
-  stat_compare_means(method = "t.test", label.y = 9.5e-08,size=3) +
-  stat_compare_means(label = "p.signif", method = "t.test",ref.group = ".all.", size = 3,label.y = 9e-08,hide.ns = T,show.legend = F) + 
-  theme(legend.position="bottom")
+  scale_fill_manual(values=c("#81b1d3","#ffffff"),name=NULL) 
 
-t.test(DNMrate~Type,subset(CGICpG,Type!="Non-CpG"))
+CGItype <- CGI %>% group_by(Type) %>%   
+  summarise_at(vars(CpG_length), list(mean=mean,sum=sum))
+CGItype$Type <- c("Intergenic CGI","Intragenic CGI","TSS CGI", "TTS CGI")
+colnames(CGItype) <- c("Type","CGIlength_mean","CGIlength_sum")
+CGItype$nDNM <- c(5,9,1,1)
+CGItype$DNMrate <- as.numeric(CGItype$nDNM)/(2*106*as.numeric(CGItype$CGIlength_sum))
+NonCGI <- c("Non CGI","NA",12766207,50,1.85E-08)
+CGItype <- rbind(CGItype, NonCGI)
+
+ggplot(data = CGItype) +
+  geom_bar(aes(x=factor(Type, level = c("TSS CGI", "TTS CGI","Intergenic CGI","Intragenic CGI","Non CGI")),y=as.numeric(DNMrate)*1.0e08),position = position_dodge(preserve = "single"),stat = "identity",width = 0.8,color="#403d77",fill="white") +
+  theme_classic(base_size = 10) +
+  ylab("Rate of DNM (e-08/bp/generation)")+
+  theme(axis.title.x = element_blank()) 
+
 
 ### weak strong pairing
 
@@ -304,21 +366,32 @@ ggplot(data = WScount,aes(x=Type_3,y=DNMrate)) +
   stat_compare_means(method = "kruskal.test", label.y = 1.1e-08,size=3) +
   stat_compare_means(label = "p.signif", method = "t.test",ref.group = ".all.",size = 3,label.y = 1.0e-08,hide.ns = T,show.legend = F)  
 
-WSrateSW <- subset(WScount,Type_3 == "S>W" | Type_3 == "W>S")
-t.test(WSrateSW$DNMrate~WSrateSW$Type_3,alternative="two.sided")
 subset(WScount)  %>% group_by(Type_3) %>% 
-  summarise_at(vars(DNMrate), list(name = mean))
-## Type_3          name
-## <chr>          <dbl>
-## 1 S>S    0.00000000148
-## 2 S>W    0.00000000291
-## 3 W>S    0.00000000236
-## 4 W>W    0.00000000171
+  summarise_at(vars(DNMrate), list(median = median,mean=mean))
+# Type_3          median          mean
+# 1 S>S           0               4.75e-10
+# 2 S>W           0.00000000276   2.42e- 9
+# 3 W>S           0.00000000139   1.20e- 9
+# 4 W>W           0               4.69e-10
 
-a <- subset(WScount,Type_3 == "S>W" | Type_3 == "W>S") %>% 
-  group_by(Sample_ID) %>%
-  summarise(n = n[Type_3 == "S>W"] / n[Type_3 == "W>S"])
-mean(a$n)
+
+## 0-inflated method - pairing type
+WS <- subset(WScount)  %>% group_by(Type_3) %>% 
+  summarise_at(vars(n,CalGenSize), list(sum = sum,mean=mean))
+WS$DNMrate0 <- WS$n_sum/(2*WS$CalGenSize_sum)
+
+# Type_3 n_sum CalGenSize_sum DNMrate0 
+# 1 S>S       35    38911663998 4.497366e-10
+# 2 S>W      178    38911663998 2.287232e-09
+# 3 W>S       88    38911663998 1.130766e-09
+# 4 W>W       34    38911663998 4.368870e-10
+
+ggplot() +
+  geom_point(data = WS, aes(x=Type_3, y=DNMrate0),color="#56B4E9") +
+  theme_classic(base_size = 10) +
+  xlab("Pairing Type") +
+  ylim(0,2.5e-09) +
+  ylab("DNM rate in 0-inflated method")
 
 subset(DNMposition,PMNumber==1) %>% count(Type_3) 
 ## Type_3   n
